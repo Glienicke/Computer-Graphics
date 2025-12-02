@@ -20,9 +20,15 @@
             gl.compileShader(shader);
 
             if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-                alert(gl.getShaderInfoLog(shader));
-                return null;
-            }
+    console.error(
+        "❌ Shader compile error in",
+        shaderName,
+        ":\n",
+        gl.getShaderInfoLog(shader)
+    );
+    return null;
+}
+
             return shader;
         }
         var vertexShader = getShader(gl, vShaderName, gl.VERTEX_SHADER),
@@ -34,9 +40,9 @@
         gl.linkProgram(program);
 
         if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-            alert("Could not initialise shaders");
-            return null;
-        }
+    console.error("❌ Shader link error:\n", gl.getProgramInfoLog(program));
+    return null;
+}
 
 
         return program;

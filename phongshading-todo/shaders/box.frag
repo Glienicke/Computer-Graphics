@@ -23,10 +23,30 @@ float shadowCalculation(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir)
 {
     float shadow=0.0;  //非阴影
     /*TODO3: 添加阴影计算，返回1表示是阴影，返回0表示非阴影*/
-    
+
+    // 从齐次坐标转到 NDC
+    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+    // [-1,1] → [0,1]
+    projCoords = projCoords * 0.5 + 0.5;
+
+    // 超出深度贴图范围直接认为不在阴影中
+    if (projCoords.z > 1.0)
+        return 0.0;
+
+    // 采样深度贴图中记录的最近深度
+    float closestDepth = texture(depthTexture, projCoords.xy).r;
+    // 当前片元在光源空间下的深度
+    float currentDepth = projCoords.z;
+
+    // 加一点 bias 防止自阴影
+    float bias = max(0.005, 0.05 * (1.0 - dot(normal, lightDir)));
+
+    // 当前深度 + bias > 最近深度 → 阴影 = 1
+    shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;
+
     return shadow;
-   
 }       
+
 
 void main()
 {
@@ -45,17 +65,21 @@ void main()
 
 
     /*TODO2:根据phong shading方法计算ambient,diffuse,specular*/
-    vec3  ambient,diffuse,specular;
-  
-  	vec3 lightReflectColor=(ambient +diffuse + specular);
+    vec3 ambient  = ambientStrength * lightColor;
 
-    //判定是否阴影，并对各种颜色进行混合
+    float diff    = max(dot(norm, lightDir), 0.0);
+    vec3 diffuse  = diffuseStrength * diff * lightColor;
+
+    float spec    = pow(max(dot(norm, halfDir), 0.0), shininess);
+    vec3 specular = specularStrength * spec * lightColor;
+
+    vec3 lightReflectColor = ambient + diffuse + specular;
+
+    // 判定是否阴影（shadow=1 表示阴影）
     float shadow = shadowCalculation(FragPosLightSpace, norm, lightDir);
-	
-    //vec3 resultColor =(ambient + (1.0-shadow) * (diffuse + specular))* TextureColor;
-    vec3 resultColor=(1.0-shadow/2.0)* lightReflectColor * TextureColor;
     
-    FragColor = vec4(resultColor, 1.f);
+    // 最终颜色（适当减少阴影强度，让地面不完全黑掉）
+    vec3 resultColor = (1.0 - shadow * 0.5) * lightReflectColor * TextureColor;
+    
+    FragColor = vec4(resultColor, 1.0);
 }
-
-
